@@ -1,0 +1,38 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Setup - Swedish Word Trainer Cloud</title>
+<style>body{font:16px/1.55 system-ui;max-width:850px;margin:35px auto;padding:0 18px;color:#202124}code,pre{background:#f4f5f7;border-radius:7px}code{padding:2px 5px}pre{padding:14px;overflow:auto}h1,h2{line-height:1.2}</style></head>
+<body>
+<h1>Swedish Word Trainer Cloud — setup</h1>
+<p>This version stores your lists in Supabase so the same account can use them from your PC, phone, tablet, or another computer.</p>
+
+<h2>1. Create a Supabase project</h2>
+<p>Create a project at supabase.com. In the project dashboard, find the <b>Project URL</b> and <b>Publishable key</b> (Settings → API Keys, or the Connect dialog).</p>
+
+<h2>2. Create the database table and security rules</h2>
+<p>Open <b>SQL Editor</b> in Supabase, paste the complete contents of <code>setup.sql</code>, and run it. The Row Level Security policies make each user's lists private.</p>
+
+<h2>3. Configure the app</h2>
+<p>Edit <code>config.js</code> in a text editor and replace the two placeholders:</p>
+<pre>window.SWT_CONFIG = {
+  supabaseUrl: "https://xxxxx.supabase.co",
+  supabasePublishableKey: "sb_publishable_xxxxx"
+};</pre>
+<p><b>Do not use a service_role key.</b></p>
+
+<h2>4. Host the folder</h2>
+<p>Upload <code>index.html</code> and <code>config.js</code> to a static web host such as GitHub Pages, Netlify, or Cloudflare Pages. HTTPS is recommended and is normally provided automatically.</p>
+
+<h2>5. Configure Supabase Auth URLs</h2>
+<p>In Supabase Authentication URL settings, set <b>Site URL</b> to your hosted app address, for example:</p>
+<pre>https://yourname.github.io/swedish-word-trainer/</pre>
+<p>Add the same URL to the allowed redirect URLs if needed. The app uses passwordless email magic links.</p>
+
+<h2>6. Use it</h2>
+<p>Open your hosted page, enter your email, and request a sign-in link. Use the same email on your phone or any other computer and the same cloud lists will appear.</p>
+
+<h2>Importing lists from version 2</h2>
+<p>If you open the cloud version in the same browser that contains your older local lists, press <b>Import lists from old local version</b>. It reads the old <code>swt-lists</code> browser storage and uploads those lists to your account.</p>
+
+<h2>What stays local?</h2>
+<p>The vocabulary lists are cloud-synced. UI preferences such as speech speed, delay, randomize, and repeat remain device-local, which is usually convenient because different devices can have different voices and playback preferences.</p>
+</body></html>

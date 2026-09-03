@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1a73e8">
+<title>Swedish Word Trainer Cloud</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f4f5f7;color:#202124}
+.wrap{max-width:920px;margin:24px auto;padding:0 16px}
+.card{background:#fff;border-radius:16px;padding:24px;box-shadow:0 6px 24px rgba(0,0,0,.08)}
+h1{margin:0 0 5px;font-size:28px}.sub{color:#666;margin:0 0 20px}
+label{font-weight:600;display:block;margin-bottom:7px}
+textarea{width:100%;min-height:240px;resize:vertical;padding:13px;border:1px solid #c8c9cc;border-radius:10px;font:16px/1.5 Consolas,monospace}
+input,select{width:100%;padding:10px;border:1px solid #bbb;border-radius:9px;font-size:16px;background:#fff}
+button{border:0;border-radius:9px;padding:10px 16px;font-size:16px;cursor:pointer;background:#e8eaed}
+button.primary{background:#1a73e8;color:white}.stop{background:#d93025;color:white}.danger{background:#fce8e6;color:#a50e0e}
+button:disabled{opacity:.5;cursor:not-allowed}
+.auth{border:1px solid #ddd;border-radius:12px;padding:14px;margin:15px 0 20px}
+.authrow{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end}
+.userrow{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.listbar{display:grid;grid-template-columns:1fr auto auto auto;gap:8px;margin-bottom:8px;align-items:end}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+.control{border:1px solid #ddd;border-radius:10px;padding:13px}
+.checks{display:flex;gap:15px;flex-wrap:wrap}.checks label{display:inline-flex;gap:7px;align-items:center;margin:0;font-weight:500}.checks input{width:auto}
+.buttons{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+.status{margin-top:20px;border-radius:12px;padding:20px;background:#f1f3f4;text-align:center;min-height:140px;display:flex;flex-direction:column;justify-content:center}
+.current{font-size:40px;font-weight:700}.progress,.muted{color:#666}.notice{font-size:13px;min-height:20px;margin:6px 0 12px}.ok{color:#188038}.err{color:#b3261e}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}.modal.show{display:flex}
+.dialog{background:white;border-radius:14px;padding:22px;max-width:460px;width:100%;box-shadow:0 10px 35px rgba(0,0,0,.25)}
+@media(max-width:650px){
+ .wrap{margin:10px auto;padding:0 10px}.card{padding:17px}.authrow{grid-template-columns:1fr}.listbar{grid-template-columns:1fr 1fr 1fr}.listbar select{grid-column:1/-1}
+ .controls{grid-template-columns:1fr}.current{font-size:32px}.buttons button{flex:1 1 42%}
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+</head>
+<body>
+<div class="wrap"><div class="card">
+<h1>🇸🇪 Swedish Word Trainer Cloud</h1>
+<p class="sub">Your word lists sync between computers and phones.</p>
+
+<div class="auth">
+  <div id="signedOut">
+    <label for="email">Sign in by email</label>
+    <div class="authrow">
+      <input id="email" type="email" autocomplete="email" placeholder="you@example.com">
+      <button id="sendLink" class="primary">Email me a sign-in link</button>
+    </div>
+    <p class="muted" style="font-size:13px;margin-bottom:0">No password required. Open the link Supabase emails you.</p>
+  </div>
+  <div id="signedIn" hidden>
+    <div class="userrow"><div>Signed in as <strong id="userEmail"></strong></div><button id="signOut">Sign out</button></div>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <label for="listSelect">Cloud word list</label>
+  <div class="listbar">
+    <select id="listSelect"></select>
+    <button id="newList">＋ New</button>
+    <button id="renameList">✎ Rename</button>
+    <button id="deleteList" class="danger">Delete</button>
+  </div>
+  <div id="notice" class="notice"></div>
+
+  <label for="words">Words / phrases — one per line</label>
+  <textarea id="words" spellcheck="false"></textarea>
+  <div class="buttons">
+    <button id="saveWords" class="primary">☁ Save to cloud</button>
+    <button id="refreshLists">↻ Refresh</button>
+    <button id="importLocal">⇧ Import lists from old local version</button>
+  </div>
+
+  <div class="controls">
+    <div class="control"><label for="delay">Delay between words</label><input id="delay" type="number" min="0" max="60" step=".5" value="3"></div>
+    <div class="control"><label for="rate">Speech speed</label><input id="rate" type="number" min=".5" max="2" step=".1" value=".9"></div>
+    <div class="control"><label for="voice">Swedish voice</label><select id="voice"></select></div>
+    <div class="control"><label>Options</label><div class="checks">
+      <label><input type="checkbox" id="random" checked> Randomize</label>
+      <label><input type="checkbox" id="repeat"> Repeat</label>
+      <label><input type="checkbox" id="hideWord"> Hide word</label>
+    </div></div>
+  </div>
+
+  <div class="buttons">
+    <button class="primary" id="start">▶ Start</button><button id="pause" disabled>⏸ Pause</button>
+    <button id="next" disabled>⏭ Next</button><button class="stop" id="stop" disabled>■ Stop</button><button id="test">🔊 Test voice</button>
+  </div>
+  <div class="status"><div class="current" id="current">Ready</div><div class="progress" id="progress">0 / 0</div></div>
+</div>
+</div></div>
+
+<div class="modal" id="modal"><div class="dialog">
+  <h2 id="modalTitle"></h2><label for="modalInput">List name</label><input id="modalInput" maxlength="80">
+  <div class="buttons" style="justify-content:flex-end"><button id="modalCancel">Cancel</button><button id="modalOK" class="primary">Save</button></div>
+</div></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const cfg=window.SWT_CONFIG||{};
+let db=null,user=null,lists=[],currentId=null,voices=[],queue=[],index=0,running=false,paused=false,timer=null,modalAction=null;
+
+function note(msg,type='ok'){ $('notice').textContent=msg; $('notice').className='notice '+type; }
+function configured(){return cfg.supabaseUrl && cfg.supabasePublishableKey && !cfg.supabaseUrl.includes('YOUR_');}
+
+if(!configured()){
+  document.body.innerHTML='<div class="wrap"><div class="card"><h1>Setup required</h1><p>Edit <b>config.js</b> and add your Supabase Project URL and publishable key. Then host these files on a web server. See README.html.</p></div></div>';
+  throw new Error('Supabase is not configured.');
+}
+
+db=supabase.createClient(cfg.supabaseUrl,cfg.supabasePublishableKey);
+
+async function initAuth(){
+  const {data:{session}}=await db.auth.getSession();
+  await setSession(session);
+  db.auth.onAuthStateChange(async (_event,session)=>{await setSession(session);});
+}
+async function setSession(session){
+  user=session?.user||null;
+  $('signedOut').hidden=!!user;$('signedIn').hidden=!user;$('app').hidden=!user;
+  if(user){$('userEmail').textContent=user.email||'';await loadLists();}
+}
+$('sendLink').onclick=async()=>{
+ const email=$('email').value.trim(); if(!email)return alert('Enter your email address.');
+ const redirect=location.origin+location.pathname;
+ const {error}=await db.auth.signInWithOtp({email,options:{emailRedirectTo:redirect}});
+ if(error)alert(error.message); else alert('Sign-in email sent. Open the link on this device.');
+};
+$('signOut').onclick=()=>db.auth.signOut();
+
+async function loadLists(preferredId=null){
+ note('Loading…','');
+ const {data,error}=await db.from('word_lists').select('id,name,words,updated_at').order('name');
+ if(error){note(error.message,'err');return}
+ lists=data||[];
+ if(!lists.length){
+   const {data:newRow,error:e}=await db.from('word_lists').insert({user_id:user.id,name:'Everyday Swedish',words:['äpple','fönster','försöka','springa','bil','hus']}).select().single();
+   if(e){note(e.message,'err');return} lists=[newRow];
+ }
+ renderLists(preferredId||currentId||lists[0].id); note('Cloud lists loaded.');
+}
+function renderLists(selectId){
+ listSelect.innerHTML='';
+ for(const l of lists){const o=document.createElement('option');o.value=l.id;o.textContent=`${l.name} (${(l.words||[]).length})`;listSelect.appendChild(o)}
+ currentId=lists.some(x=>x.id===selectId)?selectId:lists[0]?.id;
+ listSelect.value=currentId||'';loadEditor();
+}
+function current(){return lists.find(x=>x.id===currentId)}
+function loadEditor(){const l=current();$('words').value=l?(l.words||[]).join('\\n'):''}
+listSelect.onchange=()=>{currentId=listSelect.value;loadEditor()};
+
+$('saveWords').onclick=async()=>{
+ const arr=$('words').value.split(/\\r?\\n/).map(x=>x.trim()).filter(Boolean);
+ const {error}=await db.from('word_lists').update({words:arr,updated_at:new Date().toISOString()}).eq('id',currentId);
+ if(error)return note(error.message,'err');
+ const l=current();if(l)l.words=arr;renderLists(currentId);note('Saved to cloud ✓');
+};
+$('refreshLists').onclick=()=>loadLists(currentId);
+
+function openModal(action){modalAction=action;$('modalTitle').textContent=action==='new'?'New word list':'Rename word list';$('modalInput').value=action==='rename'?(current()?.name||''):'';$('modal').classList.add('show');$('modalInput').focus()}
+function closeModal(){$('modal').classList.remove('show')}
+$('modalCancel').onclick=closeModal;
+$('newList').onclick=()=>openModal('new');
+$('renameList').onclick=()=>openModal('rename');
+$('modalInput').onkeydown=e=>{if(e.key==='Enter')$('modalOK').click();if(e.key==='Escape')closeModal()};
+$('modalOK').onclick=async()=>{
+ const name=$('modalInput').value.trim();if(!name)return;
+ if(modalAction==='new'){
+   const {data,error}=await db.from('word_lists').insert({user_id:user.id,name,words:[]}).select().single();
+   if(error)return alert(error.message);closeModal();await loadLists(data.id);
+ }else{
+   const {error}=await db.from('word_lists').update({name,updated_at:new Date().toISOString()}).eq('id',currentId);
+   if(error)return alert(error.message);closeModal();await loadLists(currentId);
+ }
+};
+$('deleteList').onclick=async()=>{
+ const l=current();if(!l||!confirm(`Delete "${l.name}" from the cloud?`))return;
+ const {error}=await db.from('word_lists').delete().eq('id',l.id);
+ if(error)return note(error.message,'err');currentId=null;await loadLists();
+};
+
+$('importLocal').onclick=async()=>{
+ let local;
+ try{local=JSON.parse(localStorage.getItem('swt-lists')||'null')}catch{}
+ if(!local||!Object.keys(local).length)return alert('No saved lists from the old local version were found in this browser.');
+ let count=0;
+ for(const [name,words] of Object.entries(local)){
+   const {error}=await db.from('word_lists').upsert({user_id:user.id,name,words:Array.isArray(words)?words:[]},{onConflict:'user_id,name'});
+   if(!error)count++;
+ }
+ await loadLists();alert(`Imported ${count} list(s) to the cloud.`);
+};
+
+function loadSettings(){
+ $('delay').value=localStorage.getItem('swt-delay')||3;$('rate').value=localStorage.getItem('swt-rate')||.9;
+ $('random').checked=localStorage.getItem('swt-random')!=='false';$('repeat').checked=localStorage.getItem('swt-repeat')==='true';$('hideWord').checked=localStorage.getItem('swt-hide')==='true';
+}
+for(const id of ['delay','rate','random','repeat','hideWord'])$(id).onchange=()=>localStorage.setItem('swt-'+(id==='hideWord'?'hide':id),$(id).type==='checkbox'?$(id).checked:$(id).value);
+function loadVoices(){voices=speechSynthesis.getVoices();const sv=voices.filter(v=>(v.lang||'').toLowerCase().startsWith('sv'));const a=sv.length?sv:voices;$('voice').innerHTML='';for(const v of a){const o=document.createElement('option');o.value=voices.indexOf(v);o.textContent=`${v.name} (${v.lang})`;$('voice').appendChild(o)}}
+speechSynthesis.onvoiceschanged=loadVoices;loadVoices();loadSettings();
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function voice(){return voices[Number($('voice').value)]||voices.find(v=>(v.lang||'').startsWith('sv'))||null}
+function buttons(){$('start').disabled=running;$('pause').disabled=!running;$('next').disabled=!running;$('stop').disabled=!running;$('pause').textContent=paused?'▶ Resume':'⏸ Pause'}
+function build(){queue=(current()?.words||[]).slice();if($('random').checked)shuffle(queue);index=0}
+function speak(){
+ clearTimeout(timer);if(!running||paused)return;
+ if(index>=queue.length){if($('repeat').checked)build();else{running=false;$('current').textContent='Finished ✓';$('progress').textContent=`${queue.length} / ${queue.length}`;buttons();return}}
+ const word=queue[index];$('current').textContent=$('hideWord').checked?'🔊 Speaking…':word;$('progress').textContent=`${index+1} / ${queue.length}`;
+ speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(word);u.lang='sv-SE';u.rate=Math.max(.5,Math.min(2,Number($('rate').value)||.9));const v=voice();if(v)u.voice=v;
+ u.onend=()=>{if(!running||paused)return;index++;timer=setTimeout(speak,Math.max(0,Number($('delay').value)||0)*1000)};
+ u.onerror=e=>{if(e.error!=='canceled'&&running){index++;timer=setTimeout(speak,700)}};speechSynthesis.speak(u);
+}
+$('start').onclick=()=>{const l=current();if(!l||!(l.words||[]).length)return alert('This list has no words.');build();running=true;paused=false;buttons();speak()};
+$('pause').onclick=()=>{if(!running)return;if(!paused){paused=true;clearTimeout(timer);speechSynthesis.pause()}else{paused=false;speechSynthesis.resume();if(!speechSynthesis.speaking)speak()}buttons()};
+$('next').onclick=()=>{if(!running)return;speechSynthesis.cancel();clearTimeout(timer);paused=false;index++;speak()};
+$('stop').onclick=()=>{running=false;paused=false;clearTimeout(timer);speechSynthesis.cancel();$('current').textContent='Stopped';buttons()};
+$('test').onclick=()=>{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance('Det här är ett test av den svenska rösten.');u.lang='sv-SE';u.rate=Number($('rate').value)||.9;const v=voice();if(v)u.voice=v;speechSynthesis.speak(u)};
+
+initAuth();
+</script>
+</body>
+</html>
